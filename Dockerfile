@@ -6,8 +6,8 @@ COPY pkg_resources_shim.py /opt/venv/lib/python3.10/site-packages/pkg_resources/
 
 # Download the single missing librosa data file directly from GitHub.
 # The base image has a corrupted librosa install that is missing this file.
-RUN curl -fsSL https://raw.githubusercontent.com/librosa/librosa/0.10.1/librosa/intervals.msgpack \
-    -o /opt/venv/lib/python3.10/site-packages/librosa/intervals.msgpack
+RUN curl -fsSL https://raw.githubusercontent.com/librosa/librosa/0.10.1/librosa/core/intervals.msgpack \
+    -o /opt/venv/lib/python3.10/site-packages/librosa/core/intervals.msgpack
 
 # validate_audio_file() calls librosa.load() which crashes without pkg_resources.
 # Patched version uses ffprobe instead — instant, no Python deps.
