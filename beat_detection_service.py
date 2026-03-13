@@ -107,12 +107,9 @@ class BeatDetectionService:
         Returns:
             str: Selected detector name
         """
-        # Preference order: librosa > beat-transformer > madmom
-        # Librosa uses ~200MB RAM vs madmom's ~800MB — critical for Railway free tier
-        # which has a ~512MB limit and will SIGKILL the worker if madmom is used.
-
-        if 'librosa' in available_detectors and file_size_mb <= self.size_limits['librosa']:
-            return 'librosa'
+        # Preference order: beat-transformer > madmom
+        # Librosa is broken in the base image (corrupted package data).
+        # beat-transformer is the original author's default model.
 
         if 'beat-transformer' in available_detectors and file_size_mb <= self.size_limits['beat-transformer']:
             return 'beat-transformer'
@@ -141,10 +138,7 @@ class BeatDetectionService:
         ]
 
         if suitable_detectors:
-            # Prefer librosa (low RAM), then fall back to heavier detectors
-            if 'librosa' in suitable_detectors:
-                return 'librosa'
-            elif 'beat-transformer' in suitable_detectors:
+            if 'beat-transformer' in suitable_detectors:
                 return 'beat-transformer'
             else:
                 return suitable_detectors[0]
