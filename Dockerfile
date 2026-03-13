@@ -1,9 +1,11 @@
 FROM ptnghia/chordminiapp-backend:latest
 
-# Force-reinstall setuptools into the venv so pkg_resources is available.
-# The build-time python check guarantees the image is BROKEN immediately if this fails,
-# rather than silently producing an image where librosa crashes at runtime.
-RUN /opt/venv/bin/pip install --no-cache-dir --force-reinstall "setuptools>=67.0" && \
-    /opt/venv/bin/python -c "import pkg_resources; print('pkg_resources OK:', pkg_resources.__version__)"
-
+# Patch 1: Override the beat detection auto-selector to prefer librosa (~200MB RAM)
+#           instead of madmom (~800MB RAM) which causes SIGKILL on Railway free tier.
 COPY beat_detection_service.py /app/services/audio/beat_detection_service.py
+
+# Patch 2: Override the librosa detector to pre-convert MP3→WAV via ffmpeg before
+#           calling librosa.load(). This avoids the audioread→pkg_resources chain
+#           that crashes when setuptools is not available in the venv.
+#           WAV files are loaded by librosa using soundfile (no pkg_resources needed).
+COPY librosa_detector.py /app/services/detectors/librosa_detector.py
