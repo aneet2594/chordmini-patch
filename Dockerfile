@@ -13,3 +13,7 @@ COPY beat_detection_service.py /app/services/audio/beat_detection_service.py
 # Patch 3: Override the librosa detector to pre-convert MP3→WAV via ffmpeg before
 #           loading with soundfile — bypasses audioread entirely.
 COPY librosa_detector.py /app/services/detectors/librosa_detector.py
+
+# Patch 4: Override audio_utils.py — replaces all librosa.load() calls with
+#           soundfile.read()+ffmpeg, and validate_audio_file() with ffprobe.
+COPY audio_utils.py /app/services/audio/audio_utils.py
