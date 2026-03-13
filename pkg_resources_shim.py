@@ -2,11 +2,18 @@
 Minimal pkg_resources shim.
 
 This module provides just enough of the pkg_resources API surface
-for librosa / audioread / numba / soundfile to import without crashing.
+for librosa / audioread / numba / resampy to import and run without crashing.
 It is NOT a real pkg_resources — it's a lightweight stub that prevents
 'No module named pkg_resources' errors in environments where setuptools
 cannot be properly installed.
+
+Key fix: resource_filename() uses importlib.util.find_spec to return
+actual on-disk paths so that resampy can find its filter data files
+(e.g. data/kaiser_best.npz) that librosa.beat.beat_track() needs.
 """
+
+import os
+import importlib.util
 
 
 class DistributionNotFound(Exception):
@@ -64,8 +71,20 @@ def require(*args, **kwargs):
 
 
 def resource_filename(package, resource):
-    """Return empty string for resource lookups."""
-    return ""
+    """
+    Return the real on-disk path for a package resource.
+    Uses importlib.util.find_spec so that packages like resampy can
+    find their data files (e.g. data/kaiser_best.npz) at runtime.
+    """
+    try:
+        package_name = str(package).split('.')[0]
+        spec = importlib.util.find_spec(package_name)
+        if spec and spec.origin:
+            package_dir = os.path.dirname(spec.origin)
+            return os.path.join(package_dir, resource)
+    except Exception:
+        pass
+    return resource  # return resource name as-is rather than empty string
 
 
 def resource_string(package, resource):
