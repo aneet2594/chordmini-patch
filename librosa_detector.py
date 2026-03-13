@@ -95,19 +95,29 @@ class LibrosaDetectorService:
 
             import librosa
 
-            # Pre-convert to WAV so librosa uses soundfile (instead of
-            # audioread which calls pkg_resources.iter_entry_points and crashes
-            # when setuptools is not properly installed in the venv).
+            # Step 1: Convert to WAV via ffmpeg so we can use soundfile
+            # (librosa.load → audioread → pkg_resources crashes; soundfile is safe)
             try:
                 wav_path = _convert_to_wav(file_path)
-                log_info(f"Converted to WAV for librosa: {wav_path}")
+                log_info(f"Converted to WAV: {wav_path}")
             except Exception as conv_err:
-                log_error(f"ffmpeg conversion failed, falling back to direct load: {conv_err}")
-                wav_path = file_path   # fallback — may still fail for MP3
+                # If ffmpeg fails, try loading directly (may fail for MP3)
+                log_error(f"ffmpeg conversion failed: {conv_err}")
+                wav_path = file_path
 
-            # Load audio (will use soundfile backend for WAV — no pkg_resources needed)
-            y, sr = librosa.load(wav_path, sr=None)
-            duration = librosa.get_duration(y=y, sr=sr)
+            # Step 2: Load audio using soundfile directly — bypasses audioread entirely
+            try:
+                import soundfile as sf
+                y, sr = sf.read(wav_path, dtype='float32', always_2d=False)
+                # soundfile returns shape (samples,) for mono or (samples, channels) for stereo
+                if y.ndim > 1:
+                    y = y.mean(axis=1)   # mix to mono
+            except Exception as sf_err:
+                log_error(f"soundfile read failed, falling back to librosa.load: {sf_err}")
+                # last resort — may trigger audioread
+                y, sr = librosa.load(wav_path, sr=None)
+
+            duration = len(y) / float(sr)
 
             # Detect beats
             tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
