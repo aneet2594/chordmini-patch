@@ -3,8 +3,16 @@ FROM ptnghia/chordminiapp-backend:latest
 # Fix 1: pkg_resources shim — needed by ALL detectors for audioread import
 COPY pkg_resources_shim.py /opt/venv/lib/python3.10/site-packages/pkg_resources/__init__.py
 
-# Fix 2: Repair corrupted librosa install (missing core data files like intervals.msgpack)
-RUN /opt/venv/bin/pip install --no-deps librosa==0.10.1
+# Download the missing librosa data file — pip install is a no-op (same version
+# already installed) so we must patch the file directly.
+# Source: librosa/core/intervals.msgpack (verified via GitHub API)
+# Destination: both core/ and root of the package to cover all import paths.
+RUN /opt/venv/bin/python -c "\
+    import urllib.request; \
+    url = 'https://raw.githubusercontent.com/librosa/librosa/0.10.1/librosa/core/intervals.msgpack'; \
+    urllib.request.urlretrieve(url, '/opt/venv/lib/python3.10/site-packages/librosa/core/intervals.msgpack'); \
+    urllib.request.urlretrieve(url, '/opt/venv/lib/python3.10/site-packages/librosa/intervals.msgpack'); \
+    print('intervals.msgpack downloaded OK')"
 
 # Fix 3: Relax audio validation — base image's validate_audio_file uses librosa.load
 #         which fails for MP3 in some Docker PATH configurations.
