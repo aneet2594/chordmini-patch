@@ -107,15 +107,14 @@ class BeatDetectionService:
         Returns:
             str: Selected detector name
         """
-        # Preference order: beat-transformer > madmom
-        # Librosa is broken in the base image (corrupted package data).
-        # beat-transformer is the original author's default model.
-
-        if 'beat-transformer' in available_detectors and file_size_mb <= self.size_limits['beat-transformer']:
-            return 'beat-transformer'
+        # Preference order: madmom > beat-transformer
+        # (GCR deployment has 4GB RAM — madmom is the original default)
 
         if 'madmom' in available_detectors and file_size_mb <= self.size_limits['madmom']:
             return 'madmom'
+
+        if 'beat-transformer' in available_detectors and file_size_mb <= self.size_limits['beat-transformer']:
+            return 'beat-transformer'
 
         # Fallback to any available detector
         return available_detectors[0]
@@ -138,7 +137,9 @@ class BeatDetectionService:
         ]
 
         if suitable_detectors:
-            if 'beat-transformer' in suitable_detectors:
+            if 'madmom' in suitable_detectors:
+                return 'madmom'
+            elif 'beat-transformer' in suitable_detectors:
                 return 'beat-transformer'
             else:
                 return suitable_detectors[0]
